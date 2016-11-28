@@ -24,9 +24,41 @@ def plot_col(data, col_names, title, time_name):
     plt.legend(col_names)
     plt.title(title)
 
-def filter(data):
+def filter(data, length=25):
 
-    return lfilter(np.ones(25)/25, [1], data, axis=1)
+    return lfilter(np.ones(length)/length, [1], data, axis=1)
+
+
+
+def avg_angle(gyro, period=None, target_angle=None):
+
+    pass
+
+
+def avg_angular_velocity(gyro, period=None):
+
+    pass
+
+def avg_angular_accel(gyro, period=None):
+
+    pass
+
+
+
+
+def process_two_feet(data):
+
+    pass
+
+def process_one_foot(data):
+
+    pass
+
+def process_target_angle(data):
+
+
+
+    pass
 
 
 if __name__ == '__main__':
