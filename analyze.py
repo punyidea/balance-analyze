@@ -85,7 +85,7 @@ def synchronize_and_cleanup(ball_data,band_data,
     '''
 
     band_data_times = band_data[band_time_str].as_matrix()
-    ball_data_times = ball_data[ball_time_str]
+    ball_data_times = ball_data[ball_time_str].tolist()
     ball_data_times = [datetime.datetime.strptime(time_str,'%Y-%m-%d %H:%M:%S:%f') for time_str in ball_data_times]
     ball_data_times = np.array([float(time_struct.strftime("%s.%f")) for time_struct in ball_data_times])
     ball_data[ball_time_str] = ball_data_times
@@ -94,22 +94,60 @@ def synchronize_and_cleanup(ball_data,band_data,
     max_time = np.minimum(np.max(ball_data_times),np.max(band_data_times))
 
 
-    band_data[band_time_str] = band_data[band_time_str] - min_time
-    ball_data[ball_time_str] = ball_data[ball_time_str] - min_time
+
 
     band_data_indices = np.logical_and(min_time<= band_data_times,band_data_times<=max_time)
 
     band_data = band_data.loc[band_data_indices]
     ball_data = ball_data.loc[np.logical_and(min_time <= ball_data_times,ball_data_times <= max_time)]
 
+    band_data.loc[:,band_time_str] -=  min_time
+    ball_data.loc[:,ball_time_str] -=  min_time
+
     band_data.rename(columns = dict(zip(band_starting_names,final_storage_names)),inplace=True)
+    band_data.loc[:, 'orientation x'] = np.mod(band_data.loc[:, 'orientation x'], 2 * np.pi) * 360 / (2*np.pi)
+    band_data.loc[:, 'orientation y'] = np.mod(band_data.loc[:, 'orientation y'], 2 * np.pi) * 360 / (2*np.pi)
+    band_data.loc[:, 'orientation z'] = np.mod(band_data.loc[:, 'orientation z'], 2 * np.pi) * 360 / (2*np.pi)
 
     ball_data.rename(columns= dict(zip(ball_starting_names, final_storage_names)),inplace=True)
-    ball_data['accel x'] = ball_data['accel x']/9.81
-    ball_data['accel y'] = ball_data['accel y'] / 9.81
-    ball_data['accel z'] = ball_data['accel z'] / 9.81
+    ball_data.loc[:,'accel x'] /= 9.81
+    ball_data.loc[:,'accel y'] /= 9.81
+    ball_data.loc[:,'accel z'] /= 9.81
+
+
 
     return band_data,ball_data
+
+
+
+
+def plot_trial_data(ball_data, band_data, trial_name):
+    gyro_names = ['gyro x', 'gyro y', 'gyro z']
+    orientation_names = ['orientation x', 'orientation y','orientation z']
+
+    plt.subplot(2,2,1)
+    plot_col(ball_data, gyro_names, '{} Gyro (ball)'.format(trial_name),'time')
+
+    plt.subplot(2,2,3)
+    plot_col(band_data,gyro_names,'{} Gyro (participant)'.format(trial_name),'time')
+
+    plt.subplot(2,2,2)
+    plot_col(ball_data, orientation_names, '{} Orientation (ball)'.format(trial_name), 'time')
+
+    plt.subplot(2, 2,4)
+    plot_col(band_data, orientation_names, '{} Orientation (participant)'.format(trial_name), 'time')
+
+def plot_participant_data(subject_name):
+    for filename in os.listdir('Data/{}/Ball Data'.format(subject_name)):
+
+        if filename in os.listdir('Data/{}/Band Data'.format(subject_name)):
+            band_data = load_band_data('Data/{}/Band Data/{}'.format(subject_name,filename))
+            ball_data = load_ball_data('Data/{}/Ball Data/{}'.format(subject_name,filename))
+
+            band_data,ball_data = synchronize_and_cleanup(ball_data, band_data)
+            plt.figure()
+            plot_trial_data(ball_data,band_data,os.path.splitext(filename)[0])
+    plt.show()
 
 
 
@@ -148,13 +186,19 @@ if __name__ == '__main__':
 
 #debugging section
 
+    plot_participant_data('Subject C')
 
+    col_names = ['gyro x', 'gyro y' ,'gyro z']
 
     ball_data = load_ball_data('Data/Subject C/Ball Data/42 both feet day 1 trial 1.csv')
     band_data = load_band_data('Data/Subject C/Band Data/42 both feet day 1 trial 1.csv')
     #
     band_data, ball_data =  synchronize_and_cleanup(ball_data,band_data)
-
+    plt.figure()
+    plt.subplot(2,1, 1)
+    plot_col(band_data, col_names,'Gyro Data Both Feet (ankle)', 'time')
+    plt.subplot(2,1,2)
+    plot_col(ball_data,col_names,'Gryo Data Both Feet (ball)','time')
 
 
 
