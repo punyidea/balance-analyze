@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import lfilter
 import datetime, time
 import pickle
-import calendar
+import csv
 
 #columns of interest in ball data
 ball_starting_names = ('YYYY-MO-DD HH-MI-SS_SSS',
@@ -108,6 +108,8 @@ def synchronize_and_cleanup(ball_data,band_data,
         band_data = band_data.loc[band_data_indices]
         ball_data = ball_data.loc[np.logical_and(min_time <= ball_data_times,ball_data_times <= max_time)]
 
+    band_data.loc[:,band_time_str] -=  min_time
+    ball_data.loc[:,ball_time_str] -=  min_time
 
     #adjust band data
     band_data.rename(columns = dict(zip(band_starting_names,final_storage_names)),inplace=True)
@@ -264,8 +266,7 @@ def process_subject(letter):
             band_data = load_band_data(band_dir + file)
             ball_data = load_ball_data(ball_dir + file)
             band_data, ball_data = synchronize_and_cleanup(ball_data, band_data)
-            print(band_data.size)
-            print(ball_data.size)
+
 
             if('both' in file or 'one' in file or 'calibration' in file):
                 band_res = process_static(band_data)
@@ -316,7 +317,14 @@ def get_dynamic_intervals(static_int):
 
 if __name__ == '__main__':
 
+    #section for figuring out mysterious time offset
+    #plot_participant_data('Subject D')
+
+
+    '''
     #debugging section
+    gyro_names = ['gyro x', 'gyro y', 'gyro z']
+    orientation_names = ['orientation x', 'orientation y', 'orientation z']
     #section for figuring out mysterious time offset
     plot_participant_data('Subject D',truncate_time=False)
 
@@ -341,8 +349,6 @@ if __name__ == '__main__':
     #band_data = load_band_data('Data/Subject C/Band Data/42 both feet day 1 trial 1.csv')
     ball_data.loc[:, 'time'] -= np.min(ball_data_times)
 
-    #
-    #band_data, ball_data =  synchronize_and_cleanup(ball_data,band_data)
 
     plt.subplot(2, 1, 1)
     plot_col(ball_data, gyro_names, '{} Gyro (ball)'.format(trial_name), 'time')
@@ -356,16 +362,11 @@ if __name__ == '__main__':
     plot_participant_data('Subject D')
 
 
-
-
+    '''
 
     #process_two_feet(ball_data)
 
-    process_subject('D')
-
-    #process_subject('C')
-    #process_subject('A')
-    #process_subject('D')
+    process_subject('E')
 
 '''
 ## end debugging section
