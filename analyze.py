@@ -302,8 +302,14 @@ def process_subject(letter):
                 if('trial 2' in file):
                     trial = 2
 
+                if('Subject C' in file or 'Subject D' in file):
+                    day_num = file[27]
+                    trial_str = 'target angle day ' + day_num +  ' trial '
+                else:
+                    trial_str = 'target angle trial '
+
                 if(static != None):
-                    cur_static = static['target angle trial ' + str(trial)]
+                    cur_static = static[trial_str + str(trial)]
                     dyn = get_dynamic_intervals(cur_static)
 
                     band_res = process_dynamic(band_data, 'band', cur_static, dyn)
@@ -399,7 +405,7 @@ if __name__ == '__main__':
 
     #process_two_feet(ball_data)
 
-    process_subject('E')
+    process_subject('B')
 
 '''
 ## end debugging section
