@@ -271,14 +271,28 @@ def process_subject(letter):
     frame_static = pd.DataFrame()
     frame_dyn = pd.DataFrame()
 
-    try:
-        with open('Data/Subject ' + letter + '/Subject data.pkl') as pickle_file:
+    with open('Data/Subject ' + letter + '/Subject data.pkl') as pickle_file:
             subject_data = pickle.load(pickle_file)
-            static = subject_data['static_times']
-    except:
-        static = None
+            try:
+                static = subject_data['static_times']
+            except:
+                static = None
+            try:
+                bugged_files = subject_data['time_bugged_files']
+            except:
+                bugged_files = None
 
     for file in band_files:
+
+        time_bug = False
+        bugged_time = None
+
+        for key in bugged_files.iterkeys():
+
+            if(key in file):
+                time_bug = True
+                bugged_time = bugged_files[key]
+                break
 
         file_dict_static = {'file name': file}
         file_dict_dynamic = {'file name': file}
@@ -288,7 +302,7 @@ def process_subject(letter):
 
             band_data = load_band_data(band_dir + file)
             ball_data = load_ball_data(ball_dir + file)
-            band_data, ball_data = synchronize_and_cleanup(ball_data, band_data)
+            band_data, ball_data = synchronize_and_cleanup(ball_data, band_data,)
 
 
 
@@ -360,7 +374,7 @@ def get_dynamic_intervals(static_int):
 if __name__ == '__main__':
 
     #section for figuring out mysterious time offset
-    plot_participant_data('Subject B')
+    #plot_participant_data('Subject B')
 
 
     '''
