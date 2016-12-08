@@ -71,9 +71,7 @@ def plot_col(data, col_names, title, time_name, filter_data = True):
 
 
     plt.plot(time, processed_data.T)
-    leg = plt.legend(col_names)
-    if leg:
-        leg.draggable(True)
+    plt.legend(col_names)
     plt.title(title)
     plt.xlabel('Time Elapsed (s)')
 
@@ -187,6 +185,7 @@ def avg_angle(data, source, period=None, target_angle=None):
     '''
 
     orient = data[['orientation x', 'orientation y', 'orientation z']]
+    orient = filter(orient)
 
     if period != None:
         orient = orient[period[0]:period[1], :]
@@ -202,6 +201,7 @@ def avg_angle(data, source, period=None, target_angle=None):
 def avg_angular_speed(data, source, period=None):
 
     gyro = data[['gyro x', 'gyro y', 'gyro z']]
+    gyro = filter(gyro)
 
     if period != None:
         gyro = gyro[period[0]:period[1], :]
@@ -215,6 +215,7 @@ def avg_angular_speed(data, source, period=None):
 def avg_angular_accel(data, source, period=None):
 
     gyro = data[['gyro x', 'gyro y', 'gyro z']]
+    gyro = filter(gyro)
 
     if period != None:
         gyro = gyro[period[0]:period[1], :]
@@ -361,13 +362,11 @@ if __name__ == '__main__':
     gyro_names = ['gyro x', 'gyro y', 'gyro z']
     orientation_names = ['orientation x', 'orientation y', 'orientation z']
     #section for figuring out mysterious time offset
-    plot_participant_data('Subject D',#truncate_time=False
-                          )
+    plot_participant_data('Subject D',truncate_time=False)
 
 
 
     #debugging section
-    gyro_names = ['gyro x', 'gyro y', 'gyro z']
     gyro_names = ['gyro x', 'gyro y', 'gyro z']
     orientation_names = ['orientation x', 'orientation y', 'orientation z']
 
