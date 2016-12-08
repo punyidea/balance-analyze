@@ -68,7 +68,9 @@ def plot_col(data, col_names, title, time_name):
     processed_data = filter(np.array([data[col_name] for col_name in col_names]))
 
     plt.plot(time, processed_data.T)
-    plt.legend(col_names)
+    leg = plt.legend(col_names)
+    if leg:
+        leg.draggable(True)
     plt.title(title)
     plt.xlabel('Time Elapsed (s)')
 
@@ -79,7 +81,7 @@ def filter(data, filt_len = 25):
 
 def synchronize_and_cleanup(ball_data,band_data,
                             ball_time_str ='YYYY-MO-DD HH-MI-SS_SSS', band_time_str = 'timestamp(unix)',
-                            truncate_time=True, time_bug = False):
+                            truncate_time=True, time_bug = False, bugged_time = None):
     '''
     Synchronizes data for the balance exercises
     :param ball_data:
@@ -95,7 +97,7 @@ def synchronize_and_cleanup(ball_data,band_data,
 
     #compensate for PowerSense bug in recording time
     if time_bug:
-        band_data.loc[:,band_time_str] = band_data_times = band_data_times + 1266.1
+        band_data.loc[:,band_time_str] = band_data_times = band_data_times + bugged_time
 
     min_time = np.maximum(np.min(ball_data_times),np.min(band_data_times))
     max_time = np.minimum(np.max(ball_data_times),np.max(band_data_times))
@@ -107,9 +109,6 @@ def synchronize_and_cleanup(ball_data,band_data,
 
         band_data = band_data.loc[band_data_indices]
         ball_data = ball_data.loc[np.logical_and(min_time <= ball_data_times,ball_data_times <= max_time)]
-
-    band_data.loc[:,band_time_str] -=  min_time
-    ball_data.loc[:,ball_time_str] -=  min_time
 
     #adjust band data
     band_data.rename(columns = dict(zip(band_starting_names,final_storage_names)),inplace=True)
@@ -156,16 +155,18 @@ def plot_participant_data(subject_name, truncate_time = True):
         with open('Data/{}/Subject data.pkl'.format(subject_name),'rb') as pickle_file:
             patient_info = pickle.load(pickle_file)
         if 'Icon'not in filename and filename in os.listdir('Data/{}/Band Data'.format(subject_name)):
-            bugged_time = False
+            time_bug = False
+            bugged_time = None
             for bugged_file in patient_info['time_bugged_files']:
                 if bugged_file in filename:
-                    bugged_time=True
+                    time_bug = True
+                    bugged_time=patient_info['time_bugged_files'][bugged_file]
                     break
             band_data = load_band_data('Data/{}/Band Data/{}'.format(subject_name,filename))
             ball_data = load_ball_data('Data/{}/Ball Data/{}'.format(subject_name,filename))
 
-            band_data,ball_data = synchronize_and_cleanup(ball_data, band_data,
-                                                          truncate_time=truncate_time, time_bug=bugged_time)
+            band_data,ball_data = synchronize_and_cleanup(ball_data, band_data, truncate_time=truncate_time,
+                                                          time_bug=bugged_time, bugged_time = bugged_time)
             plt.figure()
             plot_trial_data(ball_data,band_data,os.path.splitext(filename)[0])
     plt.show()
@@ -326,11 +327,13 @@ if __name__ == '__main__':
     gyro_names = ['gyro x', 'gyro y', 'gyro z']
     orientation_names = ['orientation x', 'orientation y', 'orientation z']
     #section for figuring out mysterious time offset
-    plot_participant_data('Subject D',truncate_time=False)
+    plot_participant_data('Subject D',#truncate_time=False
+                          )
 
 
 
     #debugging section
+    gyro_names = ['gyro x', 'gyro y', 'gyro z']
     gyro_names = ['gyro x', 'gyro y', 'gyro z']
     orientation_names = ['orientation x', 'orientation y', 'orientation z']
 
