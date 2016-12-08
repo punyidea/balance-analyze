@@ -108,9 +108,6 @@ def synchronize_and_cleanup(ball_data,band_data,
         band_data = band_data.loc[band_data_indices]
         ball_data = ball_data.loc[np.logical_and(min_time <= ball_data_times,ball_data_times <= max_time)]
 
-    band_data.loc[:,band_time_str] -=  min_time
-    ball_data.loc[:,ball_time_str] -=  min_time
-
     #adjust band data
     band_data.rename(columns = dict(zip(band_starting_names,final_storage_names)),inplace=True)
     band_data.loc[:, 'orientation x'] = np.mod(band_data.loc[:, 'orientation x'], 2 * np.pi) * 360 / (2*np.pi)
@@ -172,7 +169,7 @@ def plot_participant_data(subject_name, truncate_time = True):
 
 
 
-def avg_angle(data, period=None, target_angle=None):
+def avg_angle(data, source, period=None, target_angle=None):
 
     '''
     Returns the average angular displacement and average angular distance of the given trial
@@ -187,11 +184,15 @@ def avg_angle(data, period=None, target_angle=None):
     if period != None:
         orient = orient[period[0]:period[1], :]
 
-    std_dev = orient.abs().std(axis = 0)
-    return ('angular mean', orient.abs().mean(axis=0), 'angular deviation', std_dev, 'max angle', orient.max(axis=0), 'min angle', orient.abs().min(axis=0))
+    orient = np.abs(np.array(orient))
+
+    std_dev = orient.std(axis = 0)
+    metrics = {source + ' angular mean': orient.mean(axis=0), source + ' angular deviation': std_dev, source + ' max angle': orient.max(axis=0), source + ' min angle': orient.min(axis=0)}
+
+    return metrics
 
 
-def avg_angular_speed(data, period=None):
+def avg_angular_speed(data, source, period=None):
 
     gyro = data[['gyro x', 'gyro y', 'gyro z']]
 
@@ -200,10 +201,11 @@ def avg_angular_speed(data, period=None):
 
     point_speed = np.linalg.norm(gyro, axis=1)
     ang_speed = np.mean(point_speed)
-    return ('angular speed', ang_speed)
+    speed_std = np.std(point_speed)
+    return {source + ' mean angular speed': ang_speed, source + ' angular speed standard deviation': speed_std}
 
 
-def avg_angular_accel(data, period=None):
+def avg_angular_accel(data, source, period=None):
 
     gyro = data[['gyro x', 'gyro y', 'gyro z']]
 
@@ -213,16 +215,20 @@ def avg_angular_accel(data, period=None):
     accel = np.diff(gyro, axis = 0)
     point_accel = np.linalg.norm(accel, axis=1)
     ang_accel = np.mean(point_accel)
-
-    return ('angular acceleration', ang_accel)
-
-
-def process_static(data):
-
-    return (avg_angle(data), avg_angular_speed(data))
+    accel_std = np.std(point_accel)
+    metrics = {source + ' mean angular acceleration': ang_accel, source + ' angular acceleration standard deviation': accel_std}
+    return metrics
 
 
-def process_dynamic(data, static_segment=None, dynamic_segment=None):
+def process_static(data, source):
+
+    metrics = avg_angle(data, source)
+    metrics.update(avg_angular_speed(data, source))
+
+    return metrics
+
+
+def process_dynamic(data, source, static_segment=None, dynamic_segment=None):
 
     data_times = data[['time']].as_matrix()
     static_data_indices = np.zeros((len(data_times),1))
@@ -237,7 +243,10 @@ def process_dynamic(data, static_segment=None, dynamic_segment=None):
     static = data.loc[np.squeeze(static_data_indices),:]
     dynamic = data.loc[np.squeeze(dynamic_data_indecs),:]
 
-    return(process_static(static), (avg_angular_speed(dynamic), avg_angular_accel(dynamic)))
+    ang_speed = avg_angular_speed(dynamic, source)
+    ang_speed.update(avg_angular_accel(dynamic, source))
+
+    return(process_static(static, source), ang_speed)
 
 
 def process_subject(letter):
@@ -251,6 +260,9 @@ def process_subject(letter):
     band_files = os.listdir(band_dir)
     ball_files = os.listdir(ball_dir)
 
+    frame_static = pd.DataFrame()
+    frame_dyn = pd.DataFrame()
+
     try:
         with open('Data/Subject ' + letter + '/Subject data.pkl') as pickle_file:
             subject_data = pickle.load(pickle_file)
@@ -260,6 +272,9 @@ def process_subject(letter):
 
     for file in band_files:
 
+        file_dict_static = {'file name': file}
+        file_dict_dynamic = {'file name': file}
+
         print(file)
         if(file in ball_files):
 
@@ -268,9 +283,12 @@ def process_subject(letter):
             band_data, ball_data = synchronize_and_cleanup(ball_data, band_data)
 
 
+
             if('both' in file or 'one' in file or 'calibration' in file):
-                band_res = process_static(band_data)
-                ball_res = process_static(ball_data)
+                band_res = process_static(band_data, 'band')
+                ball_res = process_static(ball_data, 'ball')
+                file_dict_static.update(band_res)
+                file_dict_static.update(ball_res)
 
             elif('target' in file):
 
@@ -283,13 +301,16 @@ def process_subject(letter):
                     cur_static = static['target angle trial ' + str(trial)]
                     dyn = get_dynamic_intervals(cur_static)
 
-                    band_res = process_dynamic(band_data, cur_static, dyn)
-                    ball_res = process_dynamic(ball_data, cur_static, dyn)
-
+                    band_res = process_dynamic(band_data, 'band', cur_static, dyn)
+                    ball_res = process_dynamic(ball_data, 'ball', cur_static, dyn)
+                    file_dict_static.update(band_res[0])
+                    file_dict_dynamic.update(band_res[1])
+                    file_dict_static.update(ball_res[0])
+                    file_dict_dynamic.update(ball_res[1])
             else:
                 band_res = 'File does not match\n'
                 ball_res = 'File does not match\n'
-
+            '''
             band_summary.write(file + '\n')
             for t in band_res:
                 band_summary.write('\n'.join(str(s) for s in t))
@@ -299,9 +320,16 @@ def process_subject(letter):
             for t in ball_res:
                 ball_summary.write('\n'.join(str(s) for s in t))
             ball_summary.write('\n\n')
+            '''
+
+            frame_static = frame_static.append(file_dict_static, ignore_index=True)
+            frame_dyn = frame_dyn.append(file_dict_dynamic, ignore_index=True)
 
     band_summary.close()
     ball_summary.close()
+
+    frame_static.to_csv('Data/Subject ' + letter + '/static summary.csv')
+    frame_dyn.to_csv('Data/Subject ' + letter + '/dynamic summary.csv')
 
 
 def get_dynamic_intervals(static_int):
