@@ -62,10 +62,13 @@ def load_ball_data(filename,col_nums = None):
 
     return data_frame
 
-def plot_col(data, col_names, title, time_name):
+def plot_col(data, col_names, title, time_name, filter_data = True):
 
     time = np.array(data[time_name])
-    processed_data = filter(np.array([data[col_name] for col_name in col_names]))
+    processed_data = np.array([data[col_name] for col_name in col_names])
+    if filter_data:
+        processed_data = filter(processed_data)
+
 
     plt.plot(time, processed_data.T)
     leg = plt.legend(col_names)
@@ -112,9 +115,9 @@ def synchronize_and_cleanup(ball_data,band_data,
 
     #adjust band data
     band_data.rename(columns = dict(zip(band_starting_names,final_storage_names)),inplace=True)
-    band_data.loc[:, 'orientation x'] = np.mod(band_data.loc[:, 'orientation x'], 2 * np.pi) * 360 / (2*np.pi)
-    band_data.loc[:, 'orientation y'] = np.mod(band_data.loc[:, 'orientation y'], 2 * np.pi) * 360 / (2*np.pi)
-    band_data.loc[:, 'orientation z'] = np.mod(band_data.loc[:, 'orientation z'], 2 * np.pi) * 360 / (2*np.pi)
+    band_data.loc[:, 'orientation x'] = np.mod(band_data.loc[:, 'orientation x']  + np.pi, 2 * np.pi) * 360 / (2*np.pi)  - 180
+    band_data.loc[:, 'orientation y'] = np.mod(band_data.loc[:, 'orientation y']  + np.pi, 2 * np.pi) * 360 / (2*np.pi)  - 180
+    band_data.loc[:, 'orientation z'] = np.mod(band_data.loc[:, 'orientation z']  + np.pi, 2 * np.pi) * 360 / (2*np.pi)  - 180
 
     #adjust ball data
     ball_data.rename(columns= dict(zip(ball_starting_names, final_storage_names)),inplace=True)
@@ -143,11 +146,11 @@ def plot_trial_data(ball_data, band_data, trial_name):
     plt.ylabel('Angular Velocity (rad/s)')
 
     plt.subplot(2,2,2)
-    plot_col(ball_data, orientation_names, '{} Orientation (ball)'.format(trial_name), 'time')
+    plot_col(ball_data, orientation_names, '{} Orientation (ball)'.format(trial_name), 'time', filter_data=False)
     plt.ylabel('Orientation (degrees)')
 
     plt.subplot(2, 2,4)
-    plot_col(band_data, orientation_names, '{} Orientation (participant)'.format(trial_name), 'time')
+    plot_col(band_data, orientation_names, '{} Orientation (participant)'.format(trial_name), 'time', filter_data=False)
     plt.ylabel('Orientation (degrees)')
 
 def plot_participant_data(subject_name, truncate_time = True):
@@ -350,7 +353,7 @@ def get_dynamic_intervals(static_int):
 if __name__ == '__main__':
 
     #section for figuring out mysterious time offset
-    #plot_participant_data('Subject D')
+    plot_participant_data('Subject B')
 
 
     '''
