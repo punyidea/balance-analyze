@@ -280,17 +280,17 @@ def process_subject(letter):
                 static = subject_data['static_times']
             except:
                 static = None
-
-            bugged_files = subject_data['time_bugged_files']
-            if(bugged_files == []):
-                bugged_files = {}
+            try:
+                bugged_files = subject_data['time_bugged_files']
+            except:
+                bugged_files = None
 
     for file in band_files:
 
         time_bug = False
         bugged_time = None
 
-        for key in bugged_files.iterkeys():
+        for key in bugged_files:
 
             if(key in file):
                 time_bug = True
@@ -378,7 +378,7 @@ def get_dynamic_intervals(static_int):
 if __name__ == '__main__':
 
     #section for figuring out mysterious time offset
-    #plot_participant_data('Subject B')
+    plot_participant_data('Subject A')
 
 
     '''
