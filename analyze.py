@@ -77,7 +77,7 @@ def plot_col(data, col_names, title, time_name, filter_data = True):
 
 def filter(data, filt_len = 25):
 
-    return lfilter(np.ones(filt_len), [25], data, axis=0)
+    return lfilter(np.ones(filt_len), [filt_len], data, axis=0)
 
 
 def synchronize_and_cleanup(ball_data,band_data,
@@ -132,23 +132,23 @@ def synchronize_and_cleanup(ball_data,band_data,
 
 
 def plot_trial_data(ball_data, band_data, trial_name):
-    gyro_names = ['gyro x', 'gyro y', 'gyro z']
-    orientation_names = ['orientation x', 'orientation y','orientation z']
+    gyro_names = np.array(['gyro x', 'gyro y', 'gyro z'])
+    orientation_names = np.array(['orientation x', 'orientation y','orientation z'])
 
     plt.subplot(2,2,1)
-    plot_col(ball_data, gyro_names, '{} Gyro (ball)'.format(trial_name),'time')
+    plot_col(ball_data, gyro_names[[0,1]], '{} Gyro (ball)'.format(trial_name),'time')
     plt.ylabel('Angular Velocity (rad/s)')
 
     plt.subplot(2,2,3)
-    plot_col(band_data,gyro_names,'{} Gyro (participant)'.format(trial_name),'time')
+    plot_col(band_data,gyro_names[[0,2]],'{} Gyro (participant)'.format(trial_name),'time')
     plt.ylabel('Angular Velocity (rad/s)')
 
     plt.subplot(2,2,2)
-    plot_col(ball_data, orientation_names, '{} Orientation (ball)'.format(trial_name), 'time', filter_data=False)
+    plot_col(ball_data, orientation_names[[0,1]], '{} Orientation (ball)'.format(trial_name), 'time', filter_data=False)
     plt.ylabel('Orientation (degrees)')
 
     plt.subplot(2, 2,4)
-    plot_col(band_data, orientation_names, '{} Orientation (participant)'.format(trial_name), 'time', filter_data=False)
+    plot_col(band_data, orientation_names[[0,2]], '{} Orientation (participant)'.format(trial_name), 'time', filter_data=False)
     plt.ylabel('Orientation (degrees)')
 
 def plot_participant_data(subject_name, truncate_time = True):
@@ -170,7 +170,7 @@ def plot_participant_data(subject_name, truncate_time = True):
                                                           time_bug=bugged_time, bugged_time = bugged_time)
             plt.figure()
             plot_trial_data(ball_data,band_data,os.path.splitext(filename)[0])
-    plt.show()
+    #plt.show()
 
 
 
@@ -185,6 +185,7 @@ def avg_angle(data, source, period=None, target_angle=None):
     '''
 
     orient = data[['orientation x', 'orientation y', 'orientation z']]
+    #orient = filter(orient)
 
     if period != None:
         orient = orient[period[0]:period[1], :]
@@ -300,11 +301,12 @@ def process_subject(letter):
         file_dict_dynamic = {'file name': file}
 
         print(file)
-        if(file in ball_files):
+        if(file in ball_files) and 'Icon' not in file:
 
             band_data = load_band_data(band_dir + file)
             ball_data = load_ball_data(ball_dir + file)
-            band_data, ball_data = synchronize_and_cleanup(ball_data, band_data, time_bug=time_bug, bugged_time=bugged_time)
+            band_data, ball_data = synchronize_and_cleanup(ball_data, band_data,
+                                                           time_bug=time_bug,bugged_time=bugged_time)
 
 
 
@@ -376,7 +378,7 @@ def get_dynamic_intervals(static_int):
 if __name__ == '__main__':
 
     #section for figuring out mysterious time offset
-    #plot_participant_data('Subject A')
+    #plot_participant_data('Subject B')
 
 
     '''
