@@ -209,7 +209,7 @@ def avg_angular_speed(data, source, period=None):
     if period != None:
         gyro = gyro[period[0]:period[1], :]
 
-    point_speed = np.linalg.norm(gyro, axis=1)
+    point_speed = np.linalg.norm(gyro, axis=1) * 180 / np.pi
     ang_speed = np.mean(point_speed)
     speed_std = np.std(point_speed)
     return {source + ' mean angular speed': ang_speed, source + ' angular speed standard deviation': speed_std}
@@ -223,7 +223,7 @@ def avg_angular_accel(data, source, period=None):
     if period != None:
         gyro = gyro[period[0]:period[1], :]
 
-    accel = np.diff(gyro, axis = 0)
+    accel = np.diff(gyro, axis = 0) * 180 / np.pi
     point_accel = np.linalg.norm(accel, axis=1)
     ang_accel = np.mean(point_accel)
     accel_std = np.std(point_accel)
