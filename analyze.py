@@ -77,7 +77,7 @@ def plot_col(data, col_names, title, time_name, filter_data = True):
 
 def filter(data, filt_len = 25):
 
-    return lfilter(np.ones(filt_len)/filt_len, [1], data, axis=1)
+    return lfilter(np.ones(filt_len), [25], data, axis=0)
 
 
 def synchronize_and_cleanup(ball_data,band_data,
@@ -185,15 +185,17 @@ def avg_angle(data, source, period=None, target_angle=None):
     '''
 
     orient = data[['orientation x', 'orientation y', 'orientation z']]
-    orient = filter(orient)
 
     if period != None:
         orient = orient[period[0]:period[1], :]
 
     orient = np.abs(np.array(orient))
-
+    angle_mean = orient.mean(axis=0)
     std_dev = orient.std(axis = 0)
-    metrics = {source + ' angular mean': orient.mean(axis=0), source + ' angular deviation': std_dev, source + ' max angle': orient.max(axis=0), source + ' min angle': orient.min(axis=0)}
+
+    temp = orient.max(axis=0)
+
+    metrics = {source + ' orientation mean x': angle_mean[0], source + ' orientation mean y': angle_mean[1], source + ' orientation mean z': angle_mean[2], source + ' orientation deviation x': std_dev[0], source + ' orientation deviation y': std_dev[1], source + ' orientation deviation z': std_dev[2], source + ' max angle x': orient.max(axis=0)[0], source + ' max angle y': orient.max(axis=0)[1], source + ' max angle z': orient.max(axis=0)[2], source + ' min angle x': orient.min(axis=0)[0], source + ' min angle y': orient.min(axis=0)[1], source + ' min angle z': orient.min(axis=0)[2]}
 
     return metrics
 
@@ -277,10 +279,10 @@ def process_subject(letter):
                 static = subject_data['static_times']
             except:
                 static = None
-            try:
-                bugged_files = subject_data['time_bugged_files']
-            except:
-                bugged_files = None
+
+            bugged_files = subject_data['time_bugged_files']
+            if(bugged_files == []):
+                bugged_files = {}
 
     for file in band_files:
 
@@ -302,7 +304,7 @@ def process_subject(letter):
 
             band_data = load_band_data(band_dir + file)
             ball_data = load_ball_data(ball_dir + file)
-            band_data, ball_data = synchronize_and_cleanup(ball_data, band_data,)
+            band_data, ball_data = synchronize_and_cleanup(ball_data, band_data, time_bug=time_bug, bugged_time=bugged_time)
 
 
 
@@ -356,8 +358,8 @@ def process_subject(letter):
     band_summary.close()
     ball_summary.close()
 
-    frame_static.to_csv('Data/Subject ' + letter + '/static summary.csv')
-    frame_dyn.to_csv('Data/Subject ' + letter + '/dynamic summary.csv')
+    frame_static.to_csv('Data/Subject ' + letter + '/' + letter + ' static summary.csv')
+    frame_dyn.to_csv('Data/Subject ' + letter + '/' + letter + ' dynamic summary.csv')
 
 
 def get_dynamic_intervals(static_int):
@@ -374,7 +376,7 @@ def get_dynamic_intervals(static_int):
 if __name__ == '__main__':
 
     #section for figuring out mysterious time offset
-    #plot_participant_data('Subject B')
+    #plot_participant_data('Subject A')
 
 
     '''
@@ -422,7 +424,7 @@ if __name__ == '__main__':
 
     #process_two_feet(ball_data)
 
-    process_subject('B')
+    process_subject('A')
 
 '''
 ## end debugging section
