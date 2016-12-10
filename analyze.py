@@ -173,16 +173,16 @@ def plot_participant_data(subject_name, truncate_time = True):
     #plt.show()
 
 
-
+'''
 def avg_angle(data, source, period=None, target_angle=None):
 
-    '''
-    Returns the average angular displacement and average angular distance of the given trial
-    :param data: dataframe containing data from a trial
-    :param period: option - the period over which to average
-    :param target_angle: optional - target angle to compare the averages against
-    :return: (disp, dist) - a tuple of the average angular displacement and distance computed
-    '''
+
+    #Returns the average angular displacement and average angular distance of the given trial
+    #:param data: dataframe containing data from a trial
+    #:param period: option - the period over which to average
+    #:param target_angle: optional - target angle to compare the averages against
+    #:return: (disp, dist) - a tuple of the average angular displacement and distance computed
+
 
     orient = data[['orientation x', 'orientation y', 'orientation z']]
     #orient = filter(orient)
@@ -259,8 +259,88 @@ def process_dynamic(data, source, static_segment=None, dynamic_segment=None):
 
     return(process_static(static, source), ang_speed)
 
+'''
+def get_segments(data, static_segment, dynamic_segment):
 
-def process_subject(letter):
+    data_times = data[['time']].as_matrix()
+    static_data_indices = np.zeros((len(data_times), 1))
+    dynamic_data_indecs = np.zeros((len(data_times), 1))
+
+    for seg in static_segment:
+        static_data_indices = np.logical_or(static_data_indices, np.logical_and(seg[0] <= data_times, data_times <= seg[1]))
+
+    for seg in dynamic_segment:
+        dynamic_data_indecs = np.logical_or(dynamic_data_indecs, np.logical_and(seg[0] <= data_times, data_times <= seg[1]))
+
+    static = data.loc[np.squeeze(static_data_indices),:]
+    dynamic = data.loc[np.squeeze(dynamic_data_indecs),:]
+
+    return (static, dynamic)
+
+
+# Only use Y axis for target angle ball, only use Z axis for target angle band for all measurements
+# Compute skewness for precision (ratio of the means)
+# avg angular deviation, max absolute deviation
+# average over all exercises for each metric
+
+# Stability - avg angular speed
+# Precision - avg angualar deviation, max deviation, skewness is y/x or x/y (whichever is greater than 0, multiply by -1 is x > y)
+# Acceleration - avg angular acceleration
+
+def compute_stability(data, cols):
+
+    data = filter(data[cols])
+    point_speed = np.linalg.norm(data, axis=1) * 180 / np.pi
+    avg_speed = np.mean(point_speed)
+
+    return avg_speed
+
+def compute_fluidity(data, cols):
+
+    data = filter(data[cols])
+    accel = np.diff(data, axis=0) * 180 / np.pi
+    point_accel = np.linalg.norm(accel, axis=1)
+    avg_accel = np.mean(point_accel)
+
+    return avg_accel
+
+
+def compute_precision(data, cols, target_angle = None):
+    '''
+    negative skewness indicates mean of absolute deviations x > y
+    positive skewness indicates mean y > x
+
+    :param data:
+    :param target_angle:
+    :return:
+    '''
+
+    data = np.abs(data[cols])
+
+    if(target_angle != None):
+        combined = np.array(data[['orientation y']])
+        deviation = np.sqrt(np.sum(np.power(combined - target_angle, 2)) / data.size)
+        y_dev = deviation
+
+    else:
+        combined = np.linalg.norm(data, axis=1)
+        deviation = np.std(combined, axis=0)
+        target_angle = np.mean(combined, axis=0)
+        y_dev = np.std(np.array(data[['orientation y']]))
+
+    x_dev = np.std(np.array(data[['orientation x']]))
+    skewness = y_dev / x_dev
+
+    if(np.abs(skewness) < 1):
+        skewness = -1/skewness
+
+    abs_dev = np.abs(combined - target_angle)
+    max_abs_dev = np.max(abs_dev)
+
+    return deviation, max_abs_dev, skewness
+
+
+def process_subject(letter, restricted = False, restriction = None):
 
     band_dir = 'Data/Subject ' + letter + '/Band Data/'
     ball_dir = 'Data/Subject ' + letter + '/Ball Data/'
@@ -273,6 +353,18 @@ def process_subject(letter):
 
     frame_static = pd.DataFrame()
     frame_dyn = pd.DataFrame()
+    metrics_frame = pd.DataFrame()
+
+    precision_cols_ball = ['orientation x', 'orientation y' ]
+    stability_cols_ball = ['gyro x', 'gyro y']
+    fluidity_cols_ball = ['gyro x', 'gyro y']
+    stability_cols_band = ['gyro z']
+    fluidity_cols_band = ['gyro z']
+
+    num_dynamic = 0
+    num_static = 0
+
+    metrics = {'deviation': 0, 'max deviation': 0, 'skewness': 0, 'absolute skewness': 0, 'stability': 0, 'fluidity': 0}
 
     with open('Data/Subject ' + letter + '/Subject data.pkl') as pickle_file:
             subject_data = pickle.load(pickle_file)
@@ -301,20 +393,27 @@ def process_subject(letter):
         file_dict_dynamic = {'file name': file}
 
         print(file)
-        if(file in ball_files) and 'Icon' not in file:
+
+        if(file in ball_files) and 'Icon' not in file and (not restricted or (restricted and restriction in file)):
 
             band_data = load_band_data(band_dir + file)
             ball_data = load_ball_data(ball_dir + file)
             band_data, ball_data = synchronize_and_cleanup(ball_data, band_data,
                                                            time_bug=time_bug,bugged_time=bugged_time)
 
-
-
             if('both' in file or 'one' in file or 'calibration' in file):
-                band_res = process_static(band_data, 'band')
-                ball_res = process_static(ball_data, 'ball')
-                file_dict_static.update(band_res)
-                file_dict_static.update(ball_res)
+
+                precision = compute_precision(ball_data, precision_cols_ball)
+
+                metrics['stability'] += compute_stability(ball_data, stability_cols_ball)
+                metrics['stability'] += compute_stability(band_data, stability_cols_band)
+
+                num_static += 2
+
+                #band_res = process_static(band_data, 'band')
+                #ball_res = process_static(ball_data, 'ball')
+                #file_dict_static.update(band_res)
+                #file_dict_static.update(ball_res)
 
             elif('target' in file):
 
@@ -330,18 +429,42 @@ def process_subject(letter):
                     trial_str = 'target angle trial '
 
                 if(static != None):
+
                     cur_static = static[trial_str + str(trial)]
                     dyn = get_dynamic_intervals(cur_static)
 
+                    ball = get_segments(ball_data, cur_static, dyn)
+                    band = get_segments(band_data, cur_static, dyn)
+
+                    precision = compute_precision(ball[0], precision_cols_ball, target_angle=25)
+
+                    metrics['stability'] += compute_stability(ball[0], stability_cols_ball)
+                    metrics['stability'] += compute_stability(band[0], stability_cols_band)
+
+                    metrics['fluidity'] += compute_fluidity(band[1], fluidity_cols_band)
+                    metrics['fluidity'] += compute_fluidity(ball[1], fluidity_cols_ball)
+
+                    num_dynamic += 2
+                    num_static += 2
+                    '''
                     band_res = process_dynamic(band_data, 'band', cur_static, dyn)
                     ball_res = process_dynamic(ball_data, 'ball', cur_static, dyn)
                     file_dict_static.update(band_res[0])
                     file_dict_dynamic.update(band_res[1])
                     file_dict_static.update(ball_res[0])
                     file_dict_dynamic.update(ball_res[1])
+                    '''
             else:
                 band_res = 'File does not match\n'
                 ball_res = 'File does not match\n'
+                print('something might be wrong')
+                precision = (0,0,0)
+
+            metrics['deviation'] += precision[0]
+            metrics['max deviation'] += precision[1]
+            metrics['skewness'] += precision[2]
+            metrics['absolute skewness'] += np.abs(precision[2])
+
             '''
             band_summary.write(file + '\n')
             for t in band_res:
@@ -354,14 +477,29 @@ def process_subject(letter):
             ball_summary.write('\n\n')
             '''
 
-            frame_static = frame_static.append(file_dict_static, ignore_index=True)
-            frame_dyn = frame_dyn.append(file_dict_dynamic, ignore_index=True)
+
+            #frame_static = frame_static.append(file_dict_static, ignore_index=True)
+            #frame_dyn = frame_dyn.append(file_dict_dynamic, ignore_index=True)
 
     band_summary.close()
     ball_summary.close()
 
-    frame_static.to_csv('Data/Subject ' + letter + '/' + letter + ' static summary.csv')
-    frame_dyn.to_csv('Data/Subject ' + letter + '/' + letter + ' dynamic summary.csv')
+    metrics['deviation'] /= num_static / 2
+    metrics['max deviation'] /= num_static / 2
+    metrics['skewness'] /= num_static / 2
+    metrics['absolute skewness'] /= np.sign(metrics['skewness']) * num_static / 2
+    metrics['stability'] /= num_static
+
+    try:
+        metrics['fluidity'] /= num_dynamic
+    except ZeroDivisionError:
+        metrics['fluidity'] = None
+
+    metrics_frame = metrics_frame.append(metrics, ignore_index=True)
+    metrics_frame.to_csv('Data/Subject ' + letter + '/' + letter + ' metric summary.csv')
+
+    #frame_static.to_csv('Data/Subject ' + letter + '/' + letter + ' static summary.csv')
+    #frame_dyn.to_csv('Data/Subject ' + letter + '/' + letter + ' dynamic summary.csv')
 
 
 def get_dynamic_intervals(static_int):
@@ -378,8 +516,16 @@ def get_dynamic_intervals(static_int):
 if __name__ == '__main__':
 
     #section for figuring out mysterious time offset
-    plot_participant_data('Subject A')
+    #plot_participant_data('Subject A')
 
+    restriction = 'target angle'
+    day = ' day 2'
+
+    #process_subject('A', restricted=True, restriction=restriction)
+    #process_subject('B', restricted=True, restriction=restriction)
+    process_subject('C', restricted=True, restriction=restriction)# + day)
+    process_subject('D', restricted=True, restriction=restriction)# + day)
+    #process_subject('E', restricted=True, restriction=restriction)
 
     '''
     #debugging section
@@ -426,7 +572,6 @@ if __name__ == '__main__':
 
     #process_two_feet(ball_data)
 
-    process_subject('A')
 
 '''
 ## end debugging section
